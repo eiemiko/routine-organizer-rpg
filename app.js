@@ -9,7 +9,7 @@
   const MISSION_HELP = {main:'Cuidado central da rotina, como higiene ou segurança.',daily:'Pequena ação recorrente que ajuda a manter o dia.',side:'Tarefa complementar que pode ser feita quando couber.',boss:'Tarefa maior que pode ser dividida em até três fases com XP.'};
   const STATUS = {pending:'Pendente',started:'Iniciada',paused:'Pausada',done:'Concluída'};
   const VIEWS = {hoje:['Hoje','⌂'],semana:['Semana','▦'],mes:['Mês','▤'],alimentacao:['Alimentação','◷'],missoes:['Missões e recompensas','✦'],configuracoes:['Configurações','⚙']};
-  const SITE_VERSION = '1.8.0';
+  const SITE_VERSION = '1.8.1';
   // Registre aqui apenas funcionalidades adicionadas, removidas ou movidas.
   // Correções e pequenos ajustes pertencem ao CHANGELOG.md.
   const FEATURE_NOTES = [
@@ -238,6 +238,34 @@
     for(const [key,target] of Object.entries(data.reschedules)){if(target!==iso)continue;const task=data.tasks.find(t=>key.startsWith(`${t.id}|`));if(task&&!list.some(item=>item.key===key))list.push({task,key,date:iso});}
     return list.sort((a,b)=>({essential:0,recommended:1,optional:2}[a.task.priority]-{essential:0,recommended:1,optional:2}[b.task.priority]));
   }
+  function suggestedSideQuestsFor(data,iso,energy){
+    if(!['normal','high'].includes(energy)||data.days[iso]?.survival||dateFrom(iso).getDay()===0)return [];
+    const scheduled=occurrencesFor(data,iso),scheduledIds=new Set(scheduled.map(item=>item.task.id));
+    const sideQuestsToday=scheduled.filter(item=>missionTypeFor(item.task)==='side').length;
+    const limit=Math.max(0,(energy==='normal'?1:2)-sideQuestsToday);
+    if(!limit)return [];
+    const weekday=(dateFrom(iso).getDay()+6)%7;
+    const distance=task=>(((Number(task.weekday)+6)%7)-weekday+7)%7;
+    return data.tasks.filter(task=>task.frequency==='weekly'&&missionTypeFor(task)==='side'&&
+      ['recommended','optional'].includes(task.priority)&&task.id!=='rest'&&!scheduledIds.has(task.id))
+      .map(task=>({task,key:completionKey(task,iso),date:iso,suggested:true}))
+      .filter(item=>{
+        const record=data.taskLog[item.key];
+        return !data.reschedules[item.key]&&(!record||record.status==='pending'||record.date===iso);
+      })
+      .sort((a,b)=>Number(b.date===data.taskLog[b.key]?.date)-Number(a.date===data.taskLog[a.key]?.date)||
+        distance(a.task)-distance(b.task)||
+        a.task.title.localeCompare(b.task.title,'pt-BR'))
+      .slice(0,limit);
+  }
+  function todayMissionGroupsFor(data,iso,energy){
+    const items=occurrencesFor(data,iso),sideQuests=suggestedSideQuestsFor(data,iso,energy);
+    const plannedSideQuests=energy==='low'?[]:items.filter(item=>item.task.priority==='recommended'&&missionTypeFor(item.task)==='side');
+    return {items,sideQuests,
+      essential:items.filter(item=>item.task.priority==='essential'),
+      recommended:items.filter(item=>item.task.priority==='recommended'&&!plannedSideQuests.includes(item)),
+      optional:[...items.filter(item=>item.task.priority==='optional'),...plannedSideQuests,...sideQuests]};
+  }
   function mealSlotsFor(settings){
     const wake=minutesOf(settings.wake),sleep=minutesOf(settings.sleep),available=sleep<=wake?sleep+1440-wake:sleep-wake;
     const count=integer(settings.mealCount,5,1,10),offsets=Array.isArray(settings.mealOffsets)?settings.mealOffsets:[];
@@ -313,7 +341,7 @@
     return false;
   }
   if(typeof module==='object'&&module.exports){
-    module.exports={seedState,normalize,activeDayFor,advanceDayIn,retreatDayIn,rewardProgressFor,missionTypeFor,saveMonthlyWeekIn,saveMilestonesIn,xpSummaryFor,toggleBossPhaseIn,classifyEnergy,occurrencesFor,completionKey,mealSlotsFor,nextMealStateFor,rescheduleMealIn,renderNextMealCardFor,renderNextStepFor,setEnergyIn,completeTaskIn,recordFiveMinutesIn,recordBlockIn,recordMealIn,unmarkMealIn,activateSurvivalIn,protectedDaysFor,isReturningFor,createTimer,timerRemainingFor,startTimer,pauseTimer,tickTimer,parseDisplayDate,displayDate,calendarGridFor,frequencyFieldsFor,time24FromInput,formatTimeTyping,formatDateTyping};
+    module.exports={seedState,normalize,activeDayFor,advanceDayIn,retreatDayIn,rewardProgressFor,missionTypeFor,saveMonthlyWeekIn,saveMilestonesIn,xpSummaryFor,toggleBossPhaseIn,classifyEnergy,occurrencesFor,suggestedSideQuestsFor,todayMissionGroupsFor,completionKey,mealSlotsFor,nextMealStateFor,rescheduleMealIn,renderNextMealCardFor,renderNextStepFor,setEnergyIn,completeTaskIn,recordFiveMinutesIn,recordBlockIn,recordMealIn,unmarkMealIn,activateSurvivalIn,protectedDaysFor,isReturningFor,createTimer,timerRemainingFor,startTimer,pauseTimer,tickTimer,parseDisplayDate,displayDate,calendarGridFor,frequencyFieldsFor,time24FromInput,formatTimeTyping,formatDateTyping};
     return;
   }
   let state,needsDateSave=false;
@@ -422,10 +450,11 @@
       <div class="task-head"><input class="mini-check" type="checkbox" data-action="task-check" ${attrs} aria-label="${isDone?'Reabrir':'Concluir'} ${escapeHTML(t.title)}" ${isDone?'checked':''}>
       <div class="task-copy"><div class="task-title-row"><h3>${escapeHTML(t.title)}</h3>${statusBadge(status)}</div>
       <div class="task-meta"><span>${escapeHTML(t.category)}</span><span aria-hidden="true">·</span><span>${kind}</span><span aria-hidden="true">·</span><span>${escapeHTML(owner)}</span><span aria-hidden="true">·</span><span>${integer(v.minutes,5)} min</span></div>
+      ${item.suggested?'<p class="small side-quest-note">Side Quest opcional sugerida pela energia. Se não fizer hoje, não vira pendência.</p>':''}
       <p class="task-version">${escapeHTML(v.description)}</p><details class="task-details"><summary>Primeiro passo e critério</summary><p><strong>Começar:</strong> ${escapeHTML(t.firstStep)}</p><p><strong>Gatilho:</strong> ${escapeHTML(t.trigger)}</p><p><strong>Concluída quando:</strong> ${escapeHTML(t.criterion)}</p><p><strong>Frequência:</strong> ${t.frequency==='daily'?'Diária':t.frequency==='weekly'?'Semanal':t.frequency==='monthly'?'Mensal':'Avulsa'} · <strong>Energia:</strong> ${ENERGY[energy]}</p></details>
       <div class="task-controls">${controls}</div></div></div></article>`;
   }
-  function taskGroup(title,items,empty){return `<section><div class="section-heading"><h2>${title}</h2><span class="quiet small">${items.length} ${items.length===1?'missão':'missões'}</span></div><div class="task-list">${items.length?items.map(renderTaskCard).join(''):`<div class="empty"><p>${empty}</p></div>`}</div></section>`;}
+  function taskGroup(title,items,empty,note=''){return `<section><div class="section-heading"><h2>${title}</h2><span class="quiet small">${items.length} ${items.length===1?'missão':'missões'}</span></div>${note?`<p class="small muted">${escapeHTML(note)}</p>`:''}<div class="task-list">${items.length?items.map(renderTaskCard).join(''):`<div class="empty"><p>${empty}</p></div>`}</div></section>`;}
   function renderNextMealCardFor(data,iso){
     const meal=nextMealStateFor(data,iso);
     const content=meal.status==='pending'?`<div class="meal-slot next-meal-slot"><div><strong class="next-meal-time">${escapeHTML(meal.slot.time)}</strong><p>Escolha o que fizer sentido.</p></div><div class="task-controls">${actionButton('Registrar feito','meal-quick-register',`data-slot="${meal.slot.index}"`,'small')}${actionButton('Remarcar','slot-edit',`data-slot="${meal.slot.index}" data-origin="today"`,'ghost small')}</div></div><p class="note">Se quiser, detalhe o que comeu depois em Alimentação.</p>`:
@@ -434,9 +463,10 @@
     return `<section class="card next-meal-card" aria-live="polite"><div class="section-heading"><h2>Próxima alimentação</h2><span class="pill ${meal.status==='complete'?'green':''}">${meal.done}/${meal.total}</span></div>${content}${meal.status==='empty'?actionButton('Ajustar horários','navigate','data-view="alimentacao"','ghost small'):''}</section>`;
   }
   function renderToday(){
-    const iso=activeDayISO(),day=currentDay(),energy=energyFor(),survival=!!day.survival,items=occurrences(iso),xpToday=xpSummaryFor(state,iso).today;
+    const iso=activeDayISO(),day=currentDay(),energy=energyFor(),survival=!!day.survival;
+    const groups=todayMissionGroupsFor(state,iso,energy),{items,sideQuests}=groups,xpToday=xpSummaryFor(state,iso).today;
     const done=survival?[0,1,2,3,4].filter(i=>day.survivalSteps?.[i]).length:items.filter(i=>taskStatus(i)==='done').length;
-    const total=survival?5:items.length,pending=items.filter(i=>taskStatus(i)!=='done').slice(0,3);
+    const total=survival?5:items.length,pending=[...items,...sideQuests].filter(i=>taskStatus(i)!=='done').slice(0,3);
     const scoreText=survival?'Cada cuidado conta.':'O que couber hoje já tem valor.';
     return `<div class="view">
       <div class="hero-grid ${survival?'solo':''}"><section class="card hero-card important"><div><span class="section-label">${survival?'UM DIA MAIS SIMPLES':'SEU DIA, NO SEU RITMO'}</span><div class="today-date-line"><div class="date-heading">${escapeHTML(dateLabel(iso))}</div><div class="day-nav">${actionButton('Voltar um dia','day-prev',`aria-label="Voltar para ${escapeHTML(dateLabel(addDays(iso,-1)))}"`,'ghost small')}${actionButton('Passar o dia','day-next',`aria-label="Passar para ${escapeHTML(dateLabel(addDays(iso,1)))}"`,'ghost small')}</div></div><p class="lead">${survival?'Cinco ações pequenas. Pare quando precisar.':scoreText}</p><p class="day-xp" role="status">✦ ${xpToday} XP hoje <span>em ações marcadas</span></p></div><div><div class="stat-line"><strong>Progresso de hoje</strong><strong>${done}/${total}</strong></div><progress max="${Math.max(total,1)}" value="${done}" aria-label="${done} de ${total} ações concluídas"></progress><p class="small">${day.mark?`Dia marcado como ${escapeHTML(day.mark)}.`:'Nenhuma meta obrigatória para validar o dia.'}</p></div></section>
@@ -445,7 +475,7 @@
       ${isReturning()&&!day.returnDone?`<section class="callout green"><div class="row wrap"><div><strong>Retorno à Base</strong><p>Escolha um único primeiro passo. Dias sem registro não viraram dívida.</p></div>${actionButton('Fiz um primeiro passo','return-complete')}</div></section>`:''}
       <section class="card survival"><div class="row wrap"><div><h2>Modo Sobrevivência</h2><p>Cinco cuidados essenciais, sem tarefas semanais ou mensais.</p></div>${actionButton('Ativar modo','survival-on','','ghost')}</div></section>
       ${energy==='high'&&dailyMinutes()>=90?`<div class="callout amber" role="status"><strong>Já foram ${dailyMinutes()} minutos de tarefas domésticas hoje.</strong><p>Uma pausa pode ajudar. Sugestão: no máximo um Boss Fight ou duas Side Quests no dia.</p></div>`:''}
-      <section class="task-groups">${taskGroup('Essenciais',items.filter(i=>i.task.priority==='essential'),'Nenhuma missão essencial prevista.')}${taskGroup('Recomendadas',items.filter(i=>i.task.priority==='recommended'),'Nenhuma missão recomendada prevista.')}${taskGroup('Opcionais',items.filter(i=>i.task.priority==='optional'),'Nenhuma missão opcional prevista.')}</section>
+      <section class="task-groups">${taskGroup('Essenciais',groups.essential,'Nenhuma missão essencial prevista.')}${taskGroup('Recomendadas',groups.recommended,'Nenhuma missão recomendada prevista.')}${taskGroup('Opcionais',groups.optional,'Nenhuma missão opcional prevista. Cadastre uma Side Quest para ter mais opções.',energy==='low'?'':'Side Quests previstas também são opcionais nesta energia. Até '+(energy==='normal'?'uma':'duas')+' no dia; sugestões extras não criam pendências.')}</section>
       <section>${renderTimer()}</section>`}
       ${survival?'':`<section class="card flat" aria-labelledby="day-mark-title"><div class="section-heading day-mark-heading"><div class="day-mark-title"><h2 id="day-mark-title">Marcar o dia</h2>${actionButton('?','day-help-open','id="day-mark-help" aria-label="Explicar as opções de Marcar o dia" aria-haspopup="dialog" aria-controls="day-help-dialog"','ghost small day-mark-help')}</div><span class="small muted">Todas as opções preservam a continuidade</span></div><div class="status-options">${['Completo','Mínimo','Recuperação','Pausa'].map(mark=>actionButton(mark,'day-mark',`data-mark="${mark}" aria-pressed="${day.mark===mark}"`,day.mark===mark?'active':'subtle')).join('')}</div><p class="note" style="margin-top:12px">Uma pausa não gera tarefas atrasadas nem remove XP.</p></section>`}
     </div>`;

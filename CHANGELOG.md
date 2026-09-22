@@ -1,6 +1,6 @@
 # Histórico técnico de versões — RoutineOrganizerRPG
 
-Versão atual: **1.8.0**. A versão do produto é independente da versão `1` do formato de dados salvo no navegador.
+Versão atual: **1.8.1**. A versão do produto é independente da versão `1` do formato de dados salvo no navegador.
 
 Use `MAJOR.MINOR.PATCH`: aumente `MINOR` ao adicionar, remover ou mover uma funcionalidade e registre a mudança também em **Ajuda → Patch notes** no site. Use `PATCH` para correções e pequenos ajustes, detalhados somente neste arquivo. Aumente `MAJOR` quando uma mudança exigir migração incompatível dos dados ou alterar substancialmente o uso do produto.
 
@@ -9,6 +9,15 @@ Use `MAJOR.MINOR.PATCH`: aumente `MINOR` ao adicionar, remover ou mover uma func
 Na pasta do projeto, execute `node --check app.js` e `node --test tests/core.test.cjs`. **Não monte nem entregue um novo ZIP se algum teste falhar.** Para novas funcionalidades, faça verificações pontuais adicionais sem modificar `tests/core.test.cjs`, conforme solicitado. Os testes usam apenas o Node.js e exercitam as mesmas regras utilizadas pela interface; não exigem servidor ou internet.
 
 Além dos testes, confira se o ZIP contém `index.html`, `styles.css`, `app.js`, `CHANGELOG.md`, `tests/core.test.cjs` e todos os recursos locais usados pelo site, e se esses arquivos correspondem aos arquivos validados.
+
+## 1.8.1 — 2026-09-22
+
+### Correções
+
+- A tela Hoje volta a compor as missões conforme a energia: baixa mantém a agenda original; normal oferece até uma Side Quest opcional; alta oferece até duas, contando as Side Quests já previstas para o dia. As missões semanais cadastradas continuam com prioridade e frequência próprias, mas são apresentadas como opcionais em Hoje nas energias normal e alta.
+- Se a agenda do dia não preencher o limite, aparecem sugestões de Side Quests semanais já cadastradas. Elas são recalculadas ao mudar a energia ou a data, não criam novas tarefas nem dívidas, respeitam reagendamentos explícitos e não entram na contagem de missões previstas. A conclusão utiliza a mesma ocorrência semanal e mantém o XP concedido apenas uma vez.
+- No domingo, o descanso e a recuperação opcionais permanecem como referência; não são sugeridas tarefas extras de limpeza ou organização.
+- `tests/core.test.cjs` permanece inalterado. A correção foi verificada também com cenários pontuais de energia, conclusão, reagendamento e XP.
 
 ## 1.8.0 — 2026-09-22
 
