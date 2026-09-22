@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0f0f0f">
+  <meta name="description" content="Rotina doméstica adaptativa para dois moradores, com alimentação, tarefas, pausas e recompensas.">
+  <title>RoutineOrganizerRPG · Rotina adaptativa</title>
+  <link rel="icon" type="image/png" sizes="32x32" href="assets/calendario-pixel-32.png">
+  <link rel="stylesheet" href="styles.css">
+  <script src="app.js" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#main">Pular para o conteúdo</a>
+  <div class="app-shell">
+    <aside class="sidebar" aria-label="Navegação principal">
+      <div class="brand"><span class="eyebrow">GESTÃO DO COTIDIANO</span><strong>Routine<span>OrganizerRPG</span></strong></div>
+      <nav id="side-nav" class="side-nav" aria-label="Áreas do site"></nav>
+      <div class="sidebar-foot"><p>Um passo possível de cada vez.</p></div>
+    </aside>
+    <div class="main-shell">
+      <header class="topbar"><div><span class="eyebrow" id="page-kicker">HOJE</span><h1 id="page-title">Hoje</h1></div><div class="top-actions" id="header-actions"><span id="header-date" class="top-date"></span><button type="button" class="button add desktop-add" id="header-add-task" data-action="add-task">＋ Adicionar nova missão</button></div></header>
+      <main id="main" tabindex="-1" aria-live="off"></main>
+    </div>
+  </div>
+  <nav id="mobile-nav" class="mobile-nav" aria-label="Navegação principal"></nav>
+  <button type="button" id="help-trigger" class="help-fab" data-action="about-open" aria-label="Ajuda e informações sobre o site" aria-haspopup="dialog" aria-controls="about-dialog">?</button>
+  <dialog id="about-dialog" class="dialog about-dialog" aria-labelledby="about-title">
+    <div class="row wrap about-header">
+      <div><span class="eyebrow">ROUTINEORGANIZERRPG</span><h2 id="about-title">Sobre o site</h2></div>
+      <button type="button" class="button subtle small" data-action="about-close">Fechar</button>
+    </div>
+    <div class="about-tabs" aria-label="Informações do site">
+      <button type="button" class="button active" data-action="about-tab" data-tab="about" aria-pressed="true">Sobre</button>
+      <button type="button" class="button subtle" data-action="about-tab" data-tab="notes" aria-pressed="false">Patch notes</button>
+    </div>
+    <section id="about-overview" aria-labelledby="about-heading">
+      <h3 id="about-heading">Para que serve?</h3>
+      <p>RoutineOrganizerRPG ajuda a organizar alimentação e tarefas domésticas de acordo com a energia disponível. Você pode escolher versões menores das tarefas, fazer pausas e voltar depois de dias sem uso.</p>
+      <p>Os registros ficam salvos neste navegador. Use <strong>Configurações → Exportar JSON</strong> para guardar um backup e <strong>Importar JSON</strong> para recuperá-lo.</p>
+      <p class="note" id="about-version"></p>
+    </section>
+    <section id="about-notes" aria-labelledby="notes-heading" hidden>
+      <h3 id="notes-heading">Patch notes</h3>
+      <p class="note">Aqui ficam apenas funcionalidades adicionadas, removidas ou movidas. Correções e pequenos ajustes são registrados no CHANGELOG.md do projeto.</p>
+      <div id="feature-notes" class="release-list"></div>
+    </section>
+  </dialog>
+  <dialog id="day-help-dialog" class="dialog narrow" aria-labelledby="day-help-title">
+    <h2 id="day-help-title">Como marcar o dia</h2>
+    <p>Escolha a descrição que faz sentido para este dia. Todas preservam sua sequência.</p>
+    <ul class="day-help-list">
+      <li><strong>Completo:</strong> você considera que concluiu o que era importante hoje.</li>
+      <li><strong>Mínimo:</strong> você fez os cuidados ou as versões mínimas que couberam.</li>
+      <li><strong>Recuperação:</strong> você deu um passo para retomar a rotina no seu ritmo.</li>
+      <li><strong>Pausa:</strong> você dedicou o dia ao descanso, sem criar tarefas atrasadas.</li>
+    </ul>
+    <p class="note">Você pode trocar a marcação depois. A escolha não retira XP nem exige concluir missões.</p>
+    <div class="dialog-actions"><button type="button" id="day-help-close" class="button" data-action="day-help-close">Entendi</button></div>
+  </dialog>
+  <dialog id="form-dialog" class="dialog"><div id="dialog-content"></div></dialog>
+  <dialog id="confirm-dialog" class="dialog narrow"><form method="dialog"><h2 id="confirm-title">Confirmar</h2><p id="confirm-message"></p><div class="dialog-actions"><button class="button subtle" value="cancel">Cancelar</button><button class="button danger" value="confirm" id="confirm-accept">Confirmar</button></div></form></dialog>
+  <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+</body>
+</html>
